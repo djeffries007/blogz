@@ -20,12 +20,28 @@ class Blog(db.Model):
 
 @app.route('/new-post', methods=['POST', 'GET'])
 def new_post():
+
+    title_error = ''
+    body_error = ''
+
     if request.method == 'POST':
         title = request.form['title']
         body = request.form['body']
         blog_post = Blog(title, body)
         db.session.add(blog_post)
         db.session.commit()
+
+        if not title:
+            title_error = "Input title"
+            title = ''
+        
+        if not body:
+            body_error = "Input body"
+            body = ''
+
+        if (title_error or body_error):
+            return render_template('new-post.html', title_error=title_error, body_error=body_error)
+
         return render_template('viewpost.html', blog=blog_post)
 
     return render_template('new-post.html')
