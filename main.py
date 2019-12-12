@@ -3,20 +3,127 @@ from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 app.config['DEBUG'] = True
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://build-a-blog:Password@localhost:8889/build-a-blog'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://blogz:Password@localhost:8889/blogz'
 app.config['SQLALCHEMY_ECHO'] = True
 db = SQLAlchemy(app)
 app.secret_key = 'asdf123cvxc'
 
-class Blog(db.Model):
 
+def is_invalid(inpt):
+    if len(inpt) < 3 or len(inpt) > 20:
+        return True
+    elif ' ' in inpt:
+        return True
+    return False
+
+def duplicate_user(username):
+    if User.query.filter_by(username=username).first():
+        return True
+    return False
+
+
+class Blog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(120))
     body = db.Column(db.String(500))
-
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    
     def __init__(self, title, body):
         self.title = title
         self.body = body
+
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(120), unique=True)
+    password = db.Column(db.String(120))
+    blogs = db.relationship('Blog', backref='owner')
+
+    def __init__(self, username, password):
+        self.username = username
+        self.password = password
+
+@app.before_request
+def require_login():
+    allowed_routes = ['login', 'signup']
+    if request.endpoint not in allowed_routes and 'username' not in session:
+        return redirect('/login')
+
+
+@app.route('/login', methods=['POST', 'GET'])
+def login():
+
+    username = ''
+    username_error = ''
+    password_error = ''
+
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        user = User.query.filter_by(username=username).first()
+
+        #if is_invalid(username) or not username:
+        if is_invalid(username):
+            username_error = "That's not a valid username"
+            username = ''
+
+        #if is_invalid(password) or not password:
+        if is_invalid(password):
+            password_error = "That's not a valid password"
+            password = ''
+            
+        if user and user.password == password:
+            session['username'] = username
+            flash("Logged in")
+            return redirect('/blog')
+        else:
+            flash('User password incorrect, or user does not exist', 'error')
+
+    return render_template('login.html', username_error=username_error, password_error=password_error, username=username)
+
+
+@app.route('/signup', methods=['POST', 'GET'])
+def signup():
+
+    username = ''
+    username_error = ''
+    password_error = ''
+    verify_error = ''
+    #duplicate_user = ''
+
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        verify = request.form['verify']
+
+        #if is_invalid(username) or not username:
+        if is_invalid(username):
+            username_error = "That's not a valid username"
+            username = ''
+
+        #if is_invalid(password) or not password:
+        if is_invalid(password):
+            password_error = "That's not a valid password"
+            password = ''
+
+        if password != verify:
+            verify_error = "Password doesn't match"
+            verify = ''
+        if duplicate_user(username):
+                username_error = "Duplicate username"
+                username = '' 
+        # TODO - validate user's data
+
+        existing_user = User.query.filter_by(username=username).first()
+        if not (username_error or password_error or verify_error or existing_user):
+            new_user = User(username, password)
+            db.session.add(new_user)
+            db.session.commit()
+            session['username'] = username
+            return redirect('/blog')
+
+    return render_template('signup.html', username_error=username_error, password_error=password_error, verify_error=verify_error, username=username)
+
 
 @app.route('/new-post', methods=['POST', 'GET'])
 def new_post():
@@ -28,6 +135,7 @@ def new_post():
         title = request.form['title']
         body = request.form['body']
         blog_post = Blog(title, body)
+        #user_post = User(username, password)
         db.session.add(blog_post)
         db.session.commit()
 
