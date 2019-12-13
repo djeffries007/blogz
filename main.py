@@ -166,6 +166,37 @@ def blog():
     blogs = Blog.query.all()
     return render_template("main-page.html", blogs=blogs)
 
+@app.route('/logout')
+def logout():
+    del session['username']
+    return redirect('/blog')
+
+@app.route('/', methods=['POST', 'GET'])
+def index():
+
+    owner = User.query.filter_by(username=session['username']).first()
+
+    if request.method == 'POST':
+        user_name = request.form['user']
+        new_user = User(user_name, owner)
+        db.session.add(new_user)
+        db.session.commit()
+#should users be replaced with blogs?
+    blogs = User.query.filter_by(completed=False,owner=owner).all()
+    completed_blogs = User.query.filter_by(completed=True,owner=owner).all()
+    return render_template('index.html',title="Home!", 
+        Blogs=blogs, completed_Blogs=completed_Blogs)
+
+@app.route('/delete-user', methods=['POST'])
+def delete_user():
+
+    user_id = int(request.form['user-id'])
+    user = User.query.get(user_id)
+    user.completed = True
+    db.session.add(user)
+    db.session.commit()
+
+    return redirect('/blog')
 
 if __name__ == '__main__':
     app.run()
