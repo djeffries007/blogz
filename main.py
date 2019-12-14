@@ -28,10 +28,10 @@ class Blog(db.Model):
     body = db.Column(db.String(500))
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     
-    def __init__(self, title, body):
+    def __init__(self, title, body, owner):
         self.title = title
         self.body = body
-
+        self.owner = owner
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -130,11 +130,16 @@ def new_post():
 
     title_error = ''
     body_error = ''
+    owner = User.query.filter_by(username=session['username']).first()
+
+
+    
+
 
     if request.method == 'POST':
         title = request.form['title']
         body = request.form['body']
-        blog_post = Blog(title, body)
+        blog_post = Blog(title, body, owner)
         #user_post = User(username, password)
         db.session.add(blog_post)
         db.session.commit()
@@ -156,13 +161,17 @@ def new_post():
 
 @app.route('/blog', methods=['GET'])
 def blog():
+
     blog_id = request.args.get('id')
+    blog_username = request.args.get('username')
     if blog_id:
         blog = Blog.query.get(blog_id)
         return render_template('viewpost.html', blog=blog)
-   
-   
-   
+    if blog_username:
+        user = User.query.filter_by(username=blog_username).first()
+        blogs = Blog.query.filter_by(owner_id=user.id).all()
+        return render_template('main-page.html', blogs=blogs)
+
     blogs = Blog.query.all()
     return render_template("main-page.html", blogs=blogs)
 
