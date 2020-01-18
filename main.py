@@ -23,7 +23,7 @@ def duplicate_user(username):
 
 
 class Blog(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)        
     title = db.Column(db.String(120))
     body = db.Column(db.String(500))
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
@@ -183,18 +183,18 @@ def logout():
 @app.route('/', methods=['POST', 'GET'])
 def index():
 
-    owner = User.query.filter_by(username=session['username']).first()
+    blog_id = request.args.get('id')
+    blog_username = request.args.get('username')
+    if blog_id:
+        blog = Blog.query.get(blog_id)
+        return render_template('viewpost.html', blog=blog)
+    if blog_username:
+        user = User.query.filter_by(username=blog_username).first()
+        blogs = Blog.query.filter_by(owner_id=user.id).all()
+        return render_template('main-page.html', blogs=blogs)
 
-    if request.method == 'POST':
-        user_name = request.form['user']
-        new_user = User(user_name, owner)
-        db.session.add(new_user)
-        db.session.commit()
-#should users be replaced with blogs?
-    blogs = User.query.filter_by(completed=False,owner=owner).all()
-    completed_blogs = User.query.filter_by(completed=True,owner=owner).all()
-    return render_template('index.html',title="Home!", 
-        Blogs=blogs, completed_Blogs=completed_Blogs)
+    user = User.query.all()
+    return render_template("index.html", user=user)
 
 @app.route('/delete-user', methods=['POST'])
 def delete_user():
